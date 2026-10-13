@@ -162,6 +162,15 @@
       "_origin": "ast"
     },
     {
+      "id": "frontend_e2e_permissions_spec_authenticatedrecoveryfixture",
+      "label": "authenticatedRecoveryFixture()",
+      "file_type": "code",
+      "source_file": "frontend/e2e/permissions.spec.js",
+      "source_location": "L219",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
       "id": "frontend_e2e_publishing_spec",
       "label": "publishing.spec.js",
       "file_type": "code",
@@ -636,6 +645,23 @@
       "community": 11
     },
     {
+      "id": "frontend_preflight",
+      "label": "preflight.mjs",
+      "file_type": "code",
+      "source_file": "frontend/preflight.mjs",
+      "source_location": "L1",
+      "_origin": "ast"
+    },
+    {
+      "id": "frontend_preflight_capture",
+      "label": "capture()",
+      "file_type": "code",
+      "source_file": "frontend/preflight.mjs",
+      "source_location": "L15",
+      "_callable": true,
+      "_origin": "ast"
+    },
+    {
       "id": "frontend_src_app",
       "label": "App.jsx",
       "file_type": "code",
@@ -676,7 +702,7 @@
       "label": "getAuthorRole()",
       "file_type": "code",
       "source_file": "frontend/src/components/Avatar.jsx",
-      "source_location": "L24",
+      "source_location": "L26",
       "_callable": true,
       "_origin": "ast"
     },
@@ -2009,6 +2035,16 @@
       "_origin": "ast"
     },
     {
+      "source": "frontend_e2e_permissions_spec",
+      "target": "frontend_e2e_permissions_spec_authenticatedrecoveryfixture",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/e2e/permissions.spec.js",
+      "source_location": "L219",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
       "source": "frontend_e2e_publishing_spec",
       "target": "frontend_e2e_fixtures",
       "relation": "imports_from",
@@ -2538,6 +2574,16 @@
       "_origin": "ast"
     },
     {
+      "source": "frontend_preflight",
+      "target": "frontend_preflight_capture",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/preflight.mjs",
+      "source_location": "L15",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
       "source": "frontend_src_app",
       "target": "frontend_src_components_publicnavbar",
       "relation": "imports_from",
@@ -2805,7 +2851,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/components/Avatar.jsx",
-      "source_location": "L24",
+      "source_location": "L26",
       "weight": 1.0,
       "_origin": "ast"
     },
@@ -3273,7 +3319,7 @@
     },
     {
       "source": "frontend_src_pages_landingpage",
-      "target": "frontend_src_utils_storage",
+      "target": "frontend_src_utils_posts",
       "relation": "imports_from",
       "context": "import",
       "confidence": "EXTRACTED",
@@ -3284,7 +3330,7 @@
     },
     {
       "source": "frontend_src_pages_landingpage",
-      "target": "frontend_src_utils_storage_getposts",
+      "target": "frontend_src_utils_posts_listposts",
       "relation": "imports",
       "context": "import",
       "confidence": "EXTRACTED",
@@ -3320,7 +3366,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/pages/LandingPage.jsx",
-      "source_location": "L82",
+      "source_location": "L80",
       "weight": 1.0,
       "_origin": "ast"
     },
@@ -6846,7 +6892,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/src/App.jsx",
-      "source_location": "L85",
+      "source_location": "L98",
       "weight": 1.0,
       "_origin": "ast"
     },
@@ -6858,7 +6904,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/src/components/Avatar.jsx",
-      "source_location": "L26",
+      "source_location": "L28",
       "weight": 1.0,
       "_origin": "ast"
     },
@@ -6942,7 +6988,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/src/components/PublicNavbar.jsx",
-      "source_location": "L61",
+      "source_location": "L63",
       "weight": 1.0,
       "_origin": "ast"
     },
@@ -6966,7 +7012,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/src/components/UserRow.jsx",
-      "source_location": "L48",
+      "source_location": "L52",
       "weight": 1.0,
       "_origin": "ast"
     },
@@ -6996,7 +7042,7 @@
     },
     {
       "source": "frontend_src_pages_landingpage_landingpage",
-      "target": "frontend_src_utils_storage_getposts",
+      "target": "frontend_src_utils_posts_listposts",
       "relation": "calls",
       "context": "call",
       "confidence": "EXTRACTED",
@@ -7524,10 +7570,10 @@
     }
   ],
   "metadata": {
-    "built_at": "2026-10-13T08:57:31.173707+00:00",
+    "built_at": "2026-10-13T09:27:35.618896+00:00",
     "version": "graph_update-v1",
     "codebase_root": "C:\\artifacts-v2\\T0132PcJVCRTV000413102608050032\\developer",
     "force": true,
-    "files_scanned": 44
+    "files_scanned": 53
   }
 }
