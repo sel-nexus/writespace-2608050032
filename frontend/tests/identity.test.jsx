@@ -87,6 +87,41 @@ describe("public entry", () => {
     await user.click(within(latest).getByRole("link", { name: /Story 3/ }));
     expect(screen.getByLabelText("Current route")).toHaveTextContent("/login");
   });
+  it("orders Latest from the Blog timestamp ties by ascending ID and truncates only long excerpts", () => {
+    const prefix = "A long preview. ".repeat(8);
+    const suffix = "EXCLUDED_SUFFIX";
+    const short = "A complete short preview.";
+    savePosts(
+      [3, 2, 4, 1].map((n) => ({
+        id: `${n}2345678-1234-4123-8123-123456789abc`,
+        title: `Tied story ${n}`,
+        content: n === 1 ? prefix + suffix : short,
+        createdAt: "2024-01-01T00:00:00.000Z",
+        authorId: "admin",
+        authorName: "Admin",
+      })),
+    );
+    mount();
+    const latest = screen.getByRole("region", { name: "Latest from the Blog" });
+    expect(
+      within(latest)
+        .getAllByRole("heading", { level: 3 })
+        .map((heading) => heading.textContent),
+    ).toEqual(["Tied story 1", "Tied story 2", "Tied story 3"]);
+    expect(within(latest).queryByText("Tied story 4")).not.toBeInTheDocument();
+    const longCard = within(latest).getByRole("link", { name: /Tied story 1/ });
+    expect(within(longCard).getByText(`${prefix.slice(0, 120)}…`).textContent).toBe(
+      `${prefix.slice(0, 120)}…`,
+    );
+    expect(latest).not.toHaveTextContent(suffix);
+    const shortCard = within(latest).getByRole("link", { name: /Tied story 2/ });
+    expect(within(shortCard).getByText(short).textContent).toBe(short);
+    expect(shortCard).not.toHaveTextContent("…");
+    expect(screen.getByRole("link", { name: "Read this story" })).toHaveAttribute(
+      "href",
+      "/blog/12345678-1234-4123-8123-123456789abc",
+    );
+  });
   it("degrades malformed and inaccessible storage without a crash", () => {
     localStorage.setItem("writespace_posts", '[{"title":{}}]');
     localStorage.setItem("writespace_session", "{");
@@ -312,6 +347,24 @@ describe("identity route boundaries", () => {
       expect(screen.getByLabelText("Current route")).toHaveTextContent(
         "/admin",
       );
+    },
+  );
+  it.each(["/login", "/register"])(
+    "redirects authenticated writer form entry %s to the blog home without a form",
+    (path) => {
+      const session = register({
+        displayName: "Ada",
+        username: "ada",
+        password: "demo",
+        confirmPassword: "demo",
+      });
+      mount(path);
+      expect(screen.getByLabelText("Current route").textContent).toBe("/blogs");
+      expect(
+        screen.getByRole("heading", { name: "All Blogs", exact: true }),
+      ).toBeVisible();
+      expect(screen.queryByLabelText("Username")).not.toBeInTheDocument();
+      expect(getSession()).toEqual(session);
     },
   );
   it.each(["/admin", "/users"])(

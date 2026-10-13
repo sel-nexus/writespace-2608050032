@@ -49,7 +49,9 @@ export function PublicNavbar({ session }) {
               <span className="flex items-center gap-2 px-4 py-2 text-sm">
                 <span
                   aria-hidden="true"
-                  className={`flex h-9 w-9 items-center justify-center rounded-full text-white ${session.role === "admin" ? "bg-secondary-600" : "bg-primary-500"}`}
+                  className={`flex h-9 w-9 items-center justify-center rounded-full text-white ${
+                    session.role === "admin" ? "bg-secondary-600" : "bg-primary-500"
+                  }`}
                 >
                   {session.role === "admin" ? "👑" : "📖"}
                 </span>

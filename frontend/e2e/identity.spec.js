@@ -162,6 +162,124 @@ test("stored preview is real text and guest click opens login", async ({
   await expect(page).toHaveURL(/\/login$/);
 });
 
+test("public navbar Get Started opens registration", async ({ page }) => {
+  await page.goto("/");
+  await openNavigation(page);
+  await page
+    .getByRole("navigation", { name: "Main navigation" })
+    .getByRole("link", { name: "Get Started", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/register$/);
+  await expect(
+    page.getByRole("heading", { name: "Create your account" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Display Name")).toBeVisible();
+});
+
+test("hero Read this story opens login for a guest", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "writespace_posts",
+      JSON.stringify([
+        {
+          id: "12345678-1234-4123-8123-123456789abc",
+          title: "Hero entry story",
+          content: "A stored story reached from the hero.",
+          authorId: "admin",
+          authorName: "Admin",
+          createdAt: "2024-01-01T00:00:00.000Z",
+        },
+      ]),
+    );
+  });
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Hero entry story" }),
+  ).toHaveCount(2);
+  await page.getByRole("link", { name: "Read this story", exact: true }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(
+    page.getByRole("heading", { name: "Login", exact: true }),
+  ).toBeVisible();
+});
+
+for (const [label, destination, heading] of [
+  ["Home", /\/$/, "Your thoughts."],
+  ["All Blogs", /\/login$/, "Login"],
+  ["Login", /\/login$/, "Login"],
+  ["Register", /\/register$/, "Create your account"],
+]) {
+  test(`guest footer ${label} opens its destination`, async ({ page }) => {
+    await page.goto("/");
+    await page
+      .getByRole("navigation", { name: "Footer navigation" })
+      .getByRole("link", { name: label, exact: true })
+      .click();
+    await expect(page).toHaveURL(destination);
+    await expect(
+      page.getByRole("heading", {
+        name: heading,
+        exact: heading !== "Your thoughts.",
+      }),
+    ).toBeVisible();
+  });
+}
+
+for (const role of ["admin", "user"]) {
+  for (const route of ["/login", "/register"]) {
+    test(`authenticated ${role} entry ${route} redirects to role home`, async ({
+      page,
+    }) => {
+      await page.addInitScript((role) => {
+        const account =
+          role === "admin"
+            ? {
+                id: "admin",
+                username: "admin",
+                displayName: "Admin",
+                role: "admin",
+              }
+            : {
+                id: "12345678-1234-4123-8123-123456789abc",
+                username: "redirect-writer",
+                displayName: "Redirect Writer",
+                password: "demo-only",
+                role: "user",
+                createdAt: "2024-01-01T00:00:00.000Z",
+              };
+        localStorage.setItem(
+          "writespace_users",
+          JSON.stringify(role === "user" ? [account] : []),
+        );
+        localStorage.setItem(
+          "writespace_session",
+          JSON.stringify({
+            userId: account.id,
+            username: account.username,
+            displayName: account.displayName,
+            role: account.role,
+          }),
+        );
+      }, role);
+      await page.goto(route);
+      await expect(page).toHaveURL(role === "admin" ? /\/admin$/ : /\/blogs$/);
+      await expect(
+        page.getByRole("heading", {
+          name: role === "admin" ? "Admin Dashboard" : "All Blogs",
+          exact: true,
+        }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("button", {
+          name: `Account options for ${role === "admin" ? "Admin" : "Redirect Writer"}`,
+          exact: true,
+        }),
+      ).toBeVisible();
+      await expect(page.getByLabel("Username", { exact: true })).toHaveCount(0);
+    });
+  }
+}
+
 test("malformed local data remains usable for public entry", async ({
   page,
 }) => {

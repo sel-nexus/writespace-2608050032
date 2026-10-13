@@ -19,7 +19,11 @@ export function UserRow({ user, currentId, onDelete, mobile = false }) {
     user.id === ADMIN_ID ? "Permanent" : formatPostDate(user.createdAt);
   const badge = (
     <span
-      className={`inline-block rounded-full px-3 py-1 text-sm font-semibold ${user.role === "admin" ? "bg-secondary-100 text-secondary-700" : "bg-primary-100 text-primary-700"}`}
+      className={`inline-block rounded-full px-3 py-1 text-sm font-semibold ${
+        user.role === "admin"
+          ? "bg-secondary-100 text-secondary-700"
+          : "bg-primary-100 text-primary-700"
+      }`}
     >
       {user.role === "admin" ? "Admin" : "user"}
     </span>

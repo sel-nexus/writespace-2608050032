@@ -1,7 +1,7 @@
 /** Introduce the local writing demo with live stored previews and an editorial hero. */
 import { Link } from "react-router-dom";
 import PropTypes from "prop-types";
-import { getPosts } from "../utils/storage";
+import { listPosts } from "../utils/posts";
 
 /** Format a validated timestamp in local time. Args: value {string} ISO date. Returns: {string} English date. */
 function displayDate(value) {
@@ -17,13 +17,7 @@ function displayDate(value) {
  * Returns: {JSX.Element} Landing content and footer.
  */
 export default function LandingPage({ session }) {
-  const posts = getPosts()
-    .sort(
-      (a, b) =>
-        Date.parse(b.createdAt) - Date.parse(a.createdAt) ||
-        b.id.localeCompare(a.id),
-    )
-    .slice(0, 3);
+  const posts = listPosts().slice(0, 3);
   const preview = posts[0];
   const readingRoute = session ? "/blogs" : "/login";
   const action =
@@ -72,7 +66,11 @@ export default function LandingPage({ session }) {
             <p className="mb-7 text-xs font-bold uppercase tracking-[0.2em] text-primary-700">
               {preview ? "From your local blog" : "The shape of a story"}
             </p>
-            <article className="rounded-card border border-border bg-surface p-7 shadow-editorial motion-safe:animate-float sm:p-9">
+            <article
+                className={`rounded-card border border-border bg-surface p-7 shadow-editorial sm:p-9 ${
+                  preview ? "" : "motion-safe:animate-float"
+                }`}
+              >
               <div className="mb-7 flex items-center justify-between border-b border-border pb-4 text-xs text-foreground-muted">
                 <span className="font-display text-lg font-bold text-foreground">
                   WriteSpace
@@ -149,6 +147,7 @@ export default function LandingPage({ session }) {
           </div>
         </section>
         <section
+          role="region"
           aria-labelledby="latest-title"
           className="mx-auto max-w-6xl px-6 py-20"
         >
@@ -173,6 +172,7 @@ export default function LandingPage({ session }) {
               {posts.map((post) => (
                 <Link
                   key={post.id}
+                  aria-label={`Read ${post.title}`}
                   to={`/blog/${post.id}`}
                   className="group rounded-card border border-border bg-surface p-7 transition-shadow hover:shadow-editorial focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
                 >

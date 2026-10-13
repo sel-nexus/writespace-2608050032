@@ -29,6 +29,19 @@ export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
   useEffect(() => {
+    const titles = {
+      "/": "WriteSpace",
+      "/login": "Login | WriteSpace",
+      "/register": "Register | WriteSpace",
+      "/blogs": "All Blogs | WriteSpace",
+      "/write": "Write a post | WriteSpace",
+      "/admin": "Admin Dashboard | WriteSpace",
+      "/users": "Manage Users | WriteSpace",
+    };
+    document.title = titles[location.pathname] ||
+      (location.pathname.startsWith("/edit/") ? "Edit post | WriteSpace" : "Read post | WriteSpace");
+  }, [location.pathname]);
+  useEffect(() => {
     /** Refresh identity after navigation or another tab's account/session change. */
     function synchronize() {
       setSession(getSession());

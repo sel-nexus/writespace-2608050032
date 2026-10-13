@@ -215,6 +215,74 @@ test("admin logs in and moderates another author's writing", async ({
   expect(await posts(page)).toEqual([]);
 });
 
+/** Persist a legitimate writer and empty library before direct missing-post entry. */
+async function authenticatedRecoveryFixture(page) {
+  await page.addInitScript(() => {
+    if (localStorage.getItem("writespace_users") !== null) return;
+    const writer = {
+      id: "42345678-1234-4123-8123-123456789abc",
+      username: "recovery-writer",
+      displayName: "Recovery Writer",
+      password: "demo-only",
+      role: "user",
+      createdAt: "2024-01-01T00:00:00.000Z",
+    };
+    localStorage.setItem("writespace_users", JSON.stringify([writer]));
+    localStorage.setItem("writespace_posts", JSON.stringify([]));
+    localStorage.setItem(
+      "writespace_session",
+      JSON.stringify({
+        userId: writer.id,
+        username: writer.username,
+        displayName: writer.displayName,
+        role: writer.role,
+      }),
+    );
+  });
+}
+
+test("authenticated writer recovers from a missing reader post", async ({ page }) => {
+  await authenticatedRecoveryFixture(page);
+  await page.goto("/blog/missing");
+  await expect(page).toHaveURL(/\/blog\/missing$/);
+  await expect(
+    page.getByRole("heading", { name: "Post not found", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Edit", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Delete", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Save", exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("Title", { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("Content", { exact: true })).toHaveCount(0);
+  await page.getByRole("link", { name: "Back to All Posts", exact: true }).click();
+  await expect(page).toHaveURL(/\/blogs$/);
+  await expect(page.getByRole("heading", { name: "All Blogs", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "No blogs yet. Be the first to write one!", exact: true }),
+  ).toBeVisible();
+  expect(await posts(page)).toEqual([]);
+});
+
+test("authenticated writer recovers from a missing editor post", async ({ page }) => {
+  await authenticatedRecoveryFixture(page);
+  await page.goto("/edit/missing");
+  await expect(page).toHaveURL(/\/edit\/missing$/);
+  await expect(
+    page.getByRole("heading", { name: "Post not found", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Edit", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Delete", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Save", exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("Title", { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("Content", { exact: true })).toHaveCount(0);
+  await page.getByRole("link", { name: "Back to All Posts", exact: true }).click();
+  await expect(page).toHaveURL(/\/blogs$/);
+  await expect(page.getByRole("heading", { name: "All Blogs", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "No blogs yet. Be the first to write one!", exact: true }),
+  ).toBeVisible();
+  expect(await posts(page)).toEqual([]);
+});
+
 for (const route of ["/edit/missing", "/blog/missing", "/users", "/admin"]) {
   test(`guest direct entry ${route} requires login`, async ({ page }) => {
     await page.goto(route);

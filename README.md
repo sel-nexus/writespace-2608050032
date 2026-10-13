@@ -1,48 +1,48 @@
 # WriteSpace
 
-A light editorial, browser-local blogging demo built with React 18, Vite 5, React Router 6, and Tailwind 3. Georgia display typography gives the writing a publication voice; Arial keeps forms and navigation legible. No external images or fonts are fetched.
+A responsive browser-local blogging demo built with React 18, Vite 5, React Router 6 and Tailwind 3. All application code is in `frontend/`. No backend, API, server database, external image or font service is required.
 
-## Current slice
+## Features
 
-Identity and shared scaffolding are implemented: public discovery with latest stored previews, responsive navigation, registration, login, validated local storage, session persistence, and logout. `/blogs` and `/admin` currently provide real account welcome and logout screens. Reading, publishing, permissions UI, and account management are later slices; their protected URLs currently lead to the same account welcome, not implemented content pages.
+- Public landing, latest three stored posts, login and registration.
+- Protected newest-first library, plain-text reader, post creation and editing, character counter and inline validation.
+- Ownership-aware editing/deletion: writers manage their own posts; admins moderate all posts.
+- Responsive role-aware navigation, account disclosure and logout.
+- Admin dashboard with real counts and latest five posts, account creation for either role and confirmed account deletion.
+- Malformed/unavailable storage reads degrade gracefully; failed writes retain input and report actionable errors.
 
-## Security boundary — demo only
+## Demo-only security boundary
 
-**Do not use real passwords or sensitive data.** Credentials are plaintext in localStorage. Default administrator: **admin / admin** (special identifier `admin`). Browser-side guards are not secure identity or authorization. Accounts and posts are confined to one browser profile, not synchronized or shared across devices. Anyone with browser access can inspect or modify the data. “Private & Local” describes data location, not encryption.
+**Never use real passwords or sensitive data.** Default administrator: **admin / admin**. Passwords are stored in plaintext in localStorage; client-side guards are not secure identity or server-enforced authorization. Anyone with access to the browser can inspect or modify data. This application is intentionally a non-sensitive local MVP, not a production multi-user service. Data stays in one browser profile and is not synchronized across browsers/devices. “Private & Local” describes location, not encryption.
 
-Storage keys: `writespace_users`, `writespace_posts`, `writespace_session`. Reads validate complete schemas and return empty/null on malformed or unavailable data. Session role and display name are derived from the current account; missing/deleted accounts invalidate sessions. Writes throw readable UI errors. Registration rolls back the new account if session saving fails, where storage permits rollback. Username uniqueness is exact and case-sensitive; registration trims surrounding username/name whitespace, passwords remain exact. Generated IDs use `crypto.randomUUID()`; use HTTPS or localhost.
+Storage keys: `writespace_users`, `writespace_posts`, `writespace_session`. Sessions derive role/name from the current account; deleted accounts invalidate sessions. Default admin and the signed-in account cannot be deleted. Deleting another account retains its posts and recorded author attribution. Usernames are trimmed and exact/case-sensitive; duplicate post titles are allowed. Titles/content must contain non-whitespace text; content and line breaks are preserved. Sort ties use ascending IDs; dates display in English local calendar time. IDs require `crypto.randomUUID()` on HTTPS or localhost.
 
-## Local commands
+Dashboard Total Users includes the permanent administrator; Total Admins counts both permanent and created admins; Standard Writers counts user-role accounts. The permanent admin creation date is displayed as Permanent. These policies resolve unanswered PRD questions and are documented in the development plan.
 
-Use Node 20+, with commands run from `frontend/`:
+## Run and verify
+
+Use Node 20+; commands below run from `frontend/`:
 
 ```sh
-npm install --no-bin-links
+npm ci --no-bin-links
 node node_modules/vite/bin/vite.js
-node node_modules/vitest/vitest.mjs run tests/storage.test.js tests/auth.test.js tests/identity.test.jsx
+node node_modules/vitest/vitest.mjs run
 node node_modules/vite/bin/vite.js build
 node node_modules/vite/bin/vite.js preview
-```
-
-Direct Node scripts work without npm executable links. `.env.example` documents host/ports; `.env` contains matching nonsecret development defaults and must stay ignored. Vite defaults to `127.0.0.1:5173`, preview to `4173`, E2E to `5174`. These values are server configuration, not secrets or runtime configuration for built static files. No backend, API, or database service is needed.
-
-## Browser tests (parent verification)
-
-The slice includes Playwright 1.48.2 specs for desktop and mobile, using one worker. The shared page fixture captures console/page errors before entry and asserts none at teardown. It starts Vite automatically from the tier-local config. After independent review, the parent can install Chromium and run:
-
-```sh
 node node_modules/@playwright/test/cli.js install chromium
 node node_modules/@playwright/test/cli.js test
 ```
 
-E2E is authored but not executed by the identity builder. Unit tests and build are the builder's permitted verification scope. Tests do not implement later publishing or admin journeys.
+Direct Node scripts avoid executable-link issues on cross-platform mounts. Copy `.env.example` to `.env` for local settings; `.env` is ignored. Configurable development/preview/test ports are documented there. Static bundles have no runtime secrets. Playwright config starts its own Vite server and runs desktop Chrome and Pixel 7 with one worker. Fixtures capture and fail on browser errors. Tests cover real localStorage data and use UI links after initial entry.
 
-## Deployment
+Verified: 386 unit/component tests; 70 browser cases across four feature specs on desktop/mobile (initial full run 66 passed, four public-preview failures corrected in source, targeted identity rerun 40/40 passed). Independent test critic passed round 2 with score 1.0 and zero high failures. Production build passed. Source preflight captures accessibility trees, computed styles, HTML and screenshots for empty landing, login error, empty admin and populated reader on both viewports. Reproduce with a running preview and `node preflight.mjs`; evidence is saved under `frontend/preflight-evidence/`. Browser test screenshots are under `frontend/test-results/`.
 
-For Vercel, set **Root Directory = frontend** in the hosting UI, select Vite, set the build to `npm run build` and output to `dist`. Both root and tier `vercel.json` deliberately contain **only** the required SPA rewrite. Hosting UI settings, not extra JSON keys, select the tier.
+## Deploy
 
-For Docker, build with `frontend/` as context (`docker build -t writespace frontend`), then expose container port 80. The two-stage Dockerfile builds static `dist/` and nginx serves it, with `try_files $uri $uri/ /index.html` for deep-route reloads. `/healthz` returns `ok`. No runtime secrets or backend proxy exist.
+For Vercel, set **Root Directory = frontend**, choose Vite, build `npm run build`, output `dist`. Root and tier `vercel.json` contain only the required SPA rewrite; configure the directory/build in the hosting UI. Deep client routes must fall back to index.html.
+
+For Docker, `docker build -t writespace frontend` builds a two-stage static nginx image. Container listens on port 80; map a host port when running. Nginx uses `try_files $uri $uri/ /index.html`; `/healthz` returns ok. The frontend production build was verified directly; a container image was supplied but not built or run during this static-app stage. Vercel deployment itself was not executed.
 
 ## Dependency caution
 
-Versions are pinned to the requested stable major lines, including the requested Playwright 1.48.2 accessibility-snapshot compatibility. Initial npm installation reported 18 audit findings (4 moderate, 12 high, 2 critical). Do not treat this legacy toolchain or local identity demo as production-safe; review advisories and upgrade tooling before any production use. No automatic audit fix was applied because it may change the mandated versions.
+Versions are pinned to the specified major lines. Initial installation reported 18 audit findings (4 moderate, 12 high, 2 critical), including legacy build/test tooling. No automatic major-version audit fix was applied. Review advisories and upgrade the toolchain before production use; this demo's plaintext identity model must also be replaced for real users.
