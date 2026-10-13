@@ -135,7 +135,10 @@ describe("forms and persistence", () => {
       screen.getByRole("button", { name: "Register", exact: true }),
     );
     expect(
-      screen.getByRole("heading", { name: "Welcome, Ada Lovelace." }),
+      screen.getByRole("heading", { name: "All Blogs", exact: true }),
+    ).toBeVisible();
+    expect(
+      screen.getByText("No blogs yet. Be the first to write one!"),
     ).toBeVisible();
     expect(screen.getByLabelText("Current route")).toHaveTextContent("/blogs");
     expect(getUsers()[0].username).toBe("ada");
@@ -143,7 +146,10 @@ describe("forms and persistence", () => {
     view.unmount();
     mount("/blogs");
     expect(
-      screen.getByRole("heading", { name: "Welcome, Ada Lovelace." }),
+      screen.getByRole("heading", { name: "All Blogs", exact: true }),
+    ).toBeVisible();
+    expect(
+      screen.getByText("No blogs yet. Be the first to write one!"),
     ).toBeVisible();
     expect(getSession()).toEqual(session);
     await user.click(screen.getByRole("button", { name: "Logout" }));

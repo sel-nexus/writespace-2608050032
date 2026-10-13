@@ -1,0 +1,293 @@
+/** Exercise publishing service branches against actual isolated browser storage. */
+import { describe, it, expect, vi } from "vitest";
+import { login, register, getSession, clearSession } from "../src/utils/auth";
+import { savePosts, saveUsers } from "../src/utils/storage";
+import {
+  createPost,
+  getPosts,
+  listPosts,
+  findPost,
+  sortPosts,
+  postTimestamp,
+  formatPostDate,
+} from "../src/utils/posts";
+
+/** Build a valid persisted post with an independently configurable date. */
+function post(n, createdAt = "2024-01-15T12:00:00.000Z") {
+  return {
+    id: `${n}2345678-1234-4123-8123-123456789abc`,
+    title: `Story ${n}`,
+    content: "A thought",
+    createdAt,
+    authorId: "admin",
+    authorName: "Admin",
+  };
+}
+
+describe("createPost", () => {
+  it("trims title only, assigns UUID/date and reads back persisted writer attribution", () => {
+    const session = register({
+      displayName: "Ada",
+      username: "ada",
+      password: "demo",
+      confirmPassword: "demo",
+    });
+    const content = "  First line\n\n<script>literal</script>\n  ";
+    const start = Date.now();
+    const created = createPost({
+      title: "  My thought  ",
+      content,
+      authorId: "admin",
+      authorName: "Forged",
+      session: { userId: "admin" },
+    });
+    expect(created.id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+    expect(Date.parse(created.createdAt)).toBeGreaterThanOrEqual(start);
+    expect(Date.parse(created.createdAt)).toBeLessThanOrEqual(Date.now());
+    expect(created).toMatchObject({
+      title: "My thought",
+      content,
+      authorId: session.userId,
+      authorName: "Ada",
+    });
+    expect(getPosts()).toEqual([created]);
+    expect(findPost(created.id)).toEqual(created);
+    expect(JSON.parse(localStorage.getItem("writespace_posts"))).toEqual([
+      created,
+    ]);
+  });
+  it("uses permanent admin attribution and retains existing posts and duplicate titles", () => {
+    login("admin", "admin");
+    savePosts([post(1)]);
+    const created = createPost({ title: "Story 1", content: "New text" });
+    expect(created).toMatchObject({ authorId: "admin", authorName: "Admin" });
+    expect(getPosts()).toEqual([post(1), created]);
+  });
+  it("derives current account name despite tampered saved session claims", () => {
+    register({
+      displayName: "Real Writer",
+      username: "writer",
+      password: "demo",
+      confirmPassword: "demo",
+    });
+    const session = getSession();
+    localStorage.setItem(
+      "writespace_session",
+      JSON.stringify({ ...session, displayName: "Forged", role: "admin" }),
+    );
+    expect(createPost({ title: "Title", content: "Content" })).toMatchObject({
+      authorName: "Real Writer",
+      authorId: session.userId,
+    });
+  });
+  it.each([
+    undefined,
+    null,
+    {},
+    { content: "Text" },
+    { title: "" },
+    { title: " \n\t " },
+    { title: 1 },
+    { title: [] },
+    { title: {} },
+    { title: true },
+  ])("rejects missing or invalid title %# without saving", (fields) => {
+    login("admin", "admin");
+    expect(() => createPost(fields)).toThrow("Title is required.");
+    expect(getPosts()).toEqual([]);
+  });
+  it.each([undefined, null, "", " \n\t ", 1, [], {}, true])(
+    "rejects missing or invalid content %# without saving",
+    (content) => {
+      login("admin", "admin");
+      expect(() => createPost({ title: "Title", content })).toThrow(
+        "Content is required.",
+      );
+      expect(getPosts()).toEqual([]);
+    },
+  );
+  it("rejects caller session when no actual current session exists", () => {
+    expect(() =>
+      createPost({
+        title: "Title",
+        content: "Text",
+        session: { userId: "admin", role: "admin" },
+      }),
+    ).toThrow("Please log in again");
+    expect(getPosts()).toEqual([]);
+  });
+  it.each([
+    "{",
+    "{}",
+    "null",
+    JSON.stringify({
+      userId: "admin",
+      username: "other",
+      displayName: "Admin",
+      role: "admin",
+    }),
+  ])("fails closed on invalid stored session %#", (raw) => {
+    localStorage.setItem("writespace_session", raw);
+    expect(() => createPost({ title: "Title", content: "Text" })).toThrow(
+      "Please log in again",
+    );
+    expect(getPosts()).toEqual([]);
+  });
+  it("rejects a deleted account and a cleared session even when caller retains identity", () => {
+    const session = register({
+      displayName: "Ada",
+      username: "ada",
+      password: "demo",
+      confirmPassword: "demo",
+    });
+    saveUsers([]);
+    expect(() =>
+      createPost({ title: "Title", content: "Text", session }),
+    ).toThrow("Please log in again");
+    login("admin", "admin");
+    clearSession();
+    expect(() =>
+      createPost({ title: "Title", content: "Text", session }),
+    ).toThrow("Please log in again");
+    expect(getPosts()).toEqual([]);
+  });
+  it.each([undefined, {}, { randomUUID: "not callable" }])(
+    "reports unavailable UUID capability %# without saving",
+    (crypto) => {
+      login("admin", "admin");
+      vi.stubGlobal("crypto", crypto);
+      expect(() => createPost({ title: "Title", content: "Text" })).toThrow(
+        "This browser cannot create a post",
+      );
+      expect(getPosts()).toEqual([]);
+    },
+  );
+  it("propagates UUID generation failure and never persists", () => {
+    login("admin", "admin");
+    vi.stubGlobal("crypto", {
+      randomUUID() {
+        throw new Error("UUID failed");
+      },
+    });
+    expect(() => createPost({ title: "Title", content: "Text" })).toThrow(
+      "UUID failed",
+    );
+    expect(getPosts()).toEqual([]);
+  });
+  it("rejects invalid generated data through savePosts instead of false success", () => {
+    login("admin", "admin");
+    vi.stubGlobal("crypto", { randomUUID: () => "invalid" });
+    expect(() => createPost({ title: "Title", content: "Text" })).toThrow(
+      "Cannot save invalid data",
+    );
+    expect(getPosts()).toEqual([]);
+  });
+  it("propagates failed storage writes and preserves the previous collection", () => {
+    login("admin", "admin");
+    savePosts([post(1)]);
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("quota");
+    });
+    expect(() => createPost({ title: "Title", content: "Text" })).toThrow(
+      "Unable to save data. Enable browser storage",
+    );
+    expect(getPosts()).toEqual([post(1)]);
+  });
+  it("fails closed when storage reads become unavailable", () => {
+    login("admin", "admin");
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    expect(() => createPost({ title: "Title", content: "Text" })).toThrow(
+      "Please log in again",
+    );
+    expect(listPosts()).toEqual([]);
+    expect(findPost(post(1).id)).toBeNull();
+  });
+  it("preserves a large plain-text payload without imposing unspecified limits", () => {
+    login("admin", "admin");
+    const content = "<img src=x onerror=alert(1)>\n" + "word ".repeat(20000);
+    const created = createPost({ title: "Large", content });
+    expect(findPost(created.id).content).toBe(content);
+  });
+});
+
+describe("reading helpers", () => {
+  it("reads empty, malformed and invalid collections gracefully", () => {
+    expect(getPosts()).toEqual([]);
+    expect(listPosts()).toEqual([]);
+    localStorage.setItem("writespace_posts", "{");
+    expect(listPosts()).toEqual([]);
+    localStorage.setItem("writespace_posts", '[{"id":"broken"}]');
+    expect(getPosts()).toEqual([]);
+  });
+  it("lists newest first with ascending ID ties and does not mutate input", () => {
+    const records = [post(3), post(2, "2024-02-01T12:00:00.000Z"), post(1)];
+    savePosts(records);
+    expect(listPosts().map((item) => item.id)).toEqual([
+      post(2).id,
+      post(1).id,
+      post(3).id,
+    ]);
+    expect(getPosts()).toEqual(records);
+    expect(sortPosts(records).map((item) => item.id)).toEqual([
+      post(2).id,
+      post(1).id,
+      post(3).id,
+    ]);
+    expect(records[0].id).toBe(post(3).id);
+  });
+  it("sorts invalid dates last with deterministic equal-date and equal-ID branches", () => {
+    const records = [
+      post(3, "bad"),
+      post(2, ""),
+      post(1, "1970-01-01T00:00:00.000Z"),
+      post(1, "1970-01-01T00:00:00.000Z"),
+    ];
+    expect(sortPosts(records).map((item) => item.id)).toEqual([
+      post(1).id,
+      post(1).id,
+      post(2).id,
+      post(3).id,
+    ]);
+    expect(sortPosts(undefined)).toEqual([]);
+    expect(sortPosts({})).toEqual([]);
+    expect(sortPosts([])).toEqual([]);
+  });
+  it("finds exact stored IDs and returns null for unknown or invalid identifiers", () => {
+    savePosts([post(1)]);
+    expect(findPost(post(1).id)).toEqual(post(1));
+    for (const id of [
+      undefined,
+      null,
+      "",
+      "  ",
+      123,
+      {},
+      "missing",
+      ` ${post(1).id}`,
+    ])
+      expect(findPost(id)).toBeNull();
+  });
+  it.each([undefined, null, "", " \n ", 0, {}, [], "not a date"])(
+    "handles invalid date %# without throwing",
+    (value) => {
+      expect(postTimestamp(value)).toBe(-Infinity);
+      expect(formatPostDate(value)).toBe("Date unavailable");
+    },
+  );
+  it("formats padded local English dates including epoch and leap days", () => {
+    expect(postTimestamp("1970-01-01T00:00:00.000Z")).toBe(0);
+    expect(formatPostDate(new Date(2024, 0, 5, 12).toISOString())).toBe(
+      "Jan 05, 2024",
+    );
+    expect(formatPostDate(new Date(2024, 1, 29, 12).toISOString())).toBe(
+      "Feb 29, 2024",
+    );
+    expect(formatPostDate(new Date(2024, 11, 31, 12).toISOString())).toBe(
+      "Dec 31, 2024",
+    );
+  });
+});

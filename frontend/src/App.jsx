@@ -12,11 +12,14 @@ import { PublicNavbar } from "./components/PublicNavbar";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import Home from "./pages/Home";
+import ReadBlog from "./pages/ReadBlog";
+import WriteBlog from "./pages/WriteBlog";
 import { clearSession, getRoleHome, getSession } from "./utils/auth";
 
-/** Render the working identity slice with minimal authenticated welcome and logout.
+/** Render identity and publishing routes with minimal authenticated navigation.
  * Returns: {JSX.Element} App routes, navigation, and inline logout feedback.
- * Notes: Publishing and account-management surfaces belong to subsequent slices.
+ * Notes: Editing and account-management surfaces remain temporary welcome routes.
  */
 export default function App() {
   const [session, setSession] = useState(getSession);
@@ -72,8 +75,8 @@ export default function App() {
           saved in this browser.
         </p>
         <p className="mt-4 max-w-xl leading-relaxed text-foreground-muted">
-          This release includes account entry. Reading, publishing, and
-          account-management tools are not available in this slice.
+          Reading and publishing are available from the public Home page.
+          Editing and account-management tools are not available in this slice.
         </p>
         <div className="mt-8 flex flex-wrap gap-4">
           <Link
@@ -114,6 +117,53 @@ export default function App() {
         Skip to content
       </a>
       <PublicNavbar session={session} />
+      {session &&
+        ["/blogs", "/write"]
+          .concat(
+            location.pathname.startsWith("/blog/") ? [location.pathname] : [],
+          )
+          .includes(location.pathname) && (
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 border-b border-border px-6 py-4">
+            <nav
+              aria-label="Publishing navigation"
+              className="flex flex-wrap gap-4"
+            >
+              <Link
+                to="/"
+                className="rounded-control px-3 py-2 text-primary-700 focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Home
+              </Link>
+              <Link
+                to="/blogs"
+                className="rounded-control px-3 py-2 text-primary-700 focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                All Blogs
+              </Link>
+              <Link
+                to="/write"
+                className="rounded-control px-3 py-2 text-primary-700 focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Write
+              </Link>
+            </nav>
+            <button
+              type="button"
+              onClick={logout}
+              className="ml-auto rounded-control px-4 py-2 font-semibold text-primary-700 hover:bg-surface-raised focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Logout
+            </button>
+            {logoutError && (
+              <p
+                role="alert"
+                className="w-full rounded-control bg-error-light p-4 text-error"
+              >
+                {logoutError}
+              </p>
+            )}
+          </div>
+        )}
       <Routes>
         <Route path="/" element={<LandingPage session={session} />} />
         <Route
@@ -136,9 +186,19 @@ export default function App() {
             )
           }
         />
-        {["/blogs", "/blog/:id", "/write", "/edit/:id"].map((path) => (
-          <Route key={path} path={path} element={welcome()} />
-        ))}
+        <Route
+          path="/blogs"
+          element={session ? <Home /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/blog/:id"
+          element={session ? <ReadBlog /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/write"
+          element={session ? <WriteBlog /> : <Navigate to="/login" replace />}
+        />
+        <Route path="/edit/:id" element={welcome()} />
         {["/admin", "/users"].map((path) => (
           <Route key={path} path={path} element={welcome(true)} />
         ))}

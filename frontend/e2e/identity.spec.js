@@ -31,11 +31,11 @@ test('guest discovery, registration errors, writer persistence, logout and login
   await page.getByLabel('Confirm Password').fill('demo-only');
   await page.getByRole('button', { name: 'Register', exact: true }).click();
   await expect(page).toHaveURL(/\/blogs$/);
-  await expect(page.getByRole('heading', { name: 'Welcome, Journey Writer.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'All Blogs', exact: true })).toBeVisible();
   const account = await page.evaluate(() => JSON.parse(localStorage.getItem('writespace_users'))[0]);
   expect(account).toMatchObject({ username: 'journey-writer', role: 'user' });
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Welcome, Journey Writer.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'All Blogs', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Logout' }).click();
   expect(await page.evaluate(() => localStorage.getItem('writespace_session'))).toBeNull();
   await page.getByRole('link', { name: 'Get Started Free' }).click();
@@ -53,8 +53,8 @@ test('guest discovery, registration errors, writer persistence, logout and login
   await page.getByLabel('Password').fill('demo-only');
   await page.getByRole('button', { name: 'Login', exact: true }).click();
   await expect(page).toHaveURL(/\/blogs$/);
-  await expect(page.getByRole('heading', { name: 'Welcome, Journey Writer.' })).toBeVisible();
-  await page.getByRole('main').getByRole('link', { name: 'Home', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'All Blogs', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Home', exact: true }).click();
   await openNavigation(page);
   await page.getByRole('link', { name: 'Go to Dashboard' }).click();
   await expect(page).toHaveURL(/\/blogs$/);
