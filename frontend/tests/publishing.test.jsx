@@ -322,6 +322,7 @@ it("keeps logout available on reader and clears identity", async () => {
   savePosts([post(1)]);
   const user = userEvent.setup();
   mount(`/blog/${post(1).id}`);
+  await user.click(screen.getByRole("button", { name: /Account options/ }));
   await user.click(screen.getByRole("button", { name: "Logout" }));
   expect(localStorage.getItem("writespace_session")).toBeNull();
   expect(screen.getByLabelText("Current route").textContent).toBe("/");

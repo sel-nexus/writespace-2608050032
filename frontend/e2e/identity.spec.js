@@ -36,6 +36,7 @@ test('guest discovery, registration errors, writer persistence, logout and login
   expect(account).toMatchObject({ username: 'journey-writer', role: 'user' });
   await page.reload();
   await expect(page.getByRole('heading', { name: 'All Blogs', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: /Account options/ }).click();
   await page.getByRole('button', { name: 'Logout' }).click();
   expect(await page.evaluate(() => localStorage.getItem('writespace_session'))).toBeNull();
   await page.getByRole('link', { name: 'Get Started Free' }).click();
@@ -54,7 +55,7 @@ test('guest discovery, registration errors, writer persistence, logout and login
   await page.getByRole('button', { name: 'Login', exact: true }).click();
   await expect(page).toHaveURL(/\/blogs$/);
   await expect(page.getByRole('heading', { name: 'All Blogs', exact: true })).toBeVisible();
-  await page.getByRole('link', { name: 'Home', exact: true }).click();
+  await page.getByRole('link', { name: 'WriteSpace', exact: true }).click();
   await openNavigation(page);
   await page.getByRole('link', { name: 'Go to Dashboard' }).click();
   await expect(page).toHaveURL(/\/blogs$/);
@@ -69,14 +70,15 @@ test('admin sign-in, session-aware navigation and authenticated reading entry', 
   await expect(page.getByRole('heading', { name: 'Welcome, Admin.' })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Welcome, Admin.' })).toBeVisible();
-  await page.getByRole('main').getByRole('link', { name: 'Home', exact: true }).click();
+  await page.getByRole('link', { name: 'WriteSpace', exact: true }).click();
   await openNavigation(page);
   await expect(page.getByRole('link', { name: 'Go to Dashboard' })).toHaveAttribute('href', '/admin');
   await page.getByRole('link', { name: 'Go to Dashboard' }).click();
   await expect(page).toHaveURL(/\/admin$/);
-  await page.getByRole('main').getByRole('link', { name: 'Home', exact: true }).click();
+  await page.getByRole('link', { name: 'WriteSpace', exact: true }).click();
   await page.getByRole('link', { name: 'Start Reading' }).click();
   await expect(page).toHaveURL(/\/blogs$/);
+  await page.getByRole('button', { name: /Account options/ }).click();
   await page.getByRole('button', { name: 'Logout' }).click();
   await expect(page).toHaveURL(/\/$/);
 });

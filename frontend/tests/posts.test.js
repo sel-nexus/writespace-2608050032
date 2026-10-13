@@ -10,6 +10,9 @@ import {
   sortPosts,
   postTimestamp,
   formatPostDate,
+  canManagePost,
+  updatePost,
+  deletePost,
 } from "../src/utils/posts";
 
 /** Build a valid persisted post with an independently configurable date. */
@@ -211,6 +214,186 @@ describe("createPost", () => {
     const content = "<img src=x onerror=alert(1)>\n" + "word ".repeat(20000);
     const created = createPost({ title: "Large", content });
     expect(findPost(created.id).content).toBe(content);
+  });
+});
+
+/** Register a real writer for permission tests. */
+function writer(username) {
+  return register({
+    displayName: username,
+    username,
+    password: "demo",
+    confirmPassword: "demo",
+  });
+}
+
+describe("post management", () => {
+  it.each(["owner", "other", "admin", "guest"])(
+    "enforces %s management and persists only allowed operations",
+    (role) => {
+      const owner = writer("owner");
+      const original = createPost({
+        title: "Original",
+        content: "Original text",
+      });
+      const other = writer("other");
+      if (role === "owner") login("owner", "demo");
+      if (role === "admin") login("admin", "admin");
+      if (role === "guest") clearSession();
+      const allowed = role === "owner" || role === "admin";
+      expect(canManagePost(original)).toBe(allowed);
+      expect(
+        canManagePost(original, {
+          ...other,
+          userId: owner.userId,
+          role: "admin",
+        }),
+      ).toBe(role === "owner");
+      if (allowed) {
+        const updated = updatePost(original.id, {
+          title: "  Revised  ",
+          content: "  <script>literal</script>\n",
+          id: "forged",
+          authorId: "admin",
+          authorName: "Forged",
+          createdAt: "forged",
+          session: other,
+        });
+        expect(updated).toEqual({
+          ...original,
+          title: "Revised",
+          content: "  <script>literal</script>\n",
+        });
+        expect(findPost(original.id)).toEqual(updated);
+        expect(getPosts()).toEqual([updated]);
+        deletePost(original.id);
+        expect(findPost(original.id)).toBeNull();
+        expect(getPosts()).toEqual([]);
+      } else {
+        expect(() =>
+          updatePost(original.id, { title: "Changed", content: "Changed" }),
+        ).toThrow(role === "guest" ? "Please log in again" : "permission");
+        expect(() => deletePost(original.id)).toThrow(
+          role === "guest" ? "Please log in again" : "permission",
+        );
+        expect(getPosts()).toEqual([original]);
+      }
+    },
+  );
+  it("ignores elevated stored claims and rechecks changed current account roles", () => {
+    writer("owner");
+    const original = createPost({ title: "Original", content: "Text" });
+    const other = writer("other");
+    localStorage.setItem(
+      "writespace_session",
+      JSON.stringify({ ...other, role: "admin" }),
+    );
+    expect(canManagePost(original, { ...other, role: "admin" })).toBe(false);
+    expect(() => deletePost(original.id)).toThrow("permission");
+    const users = JSON.parse(localStorage.getItem("writespace_users"));
+    saveUsers(
+      users.map((user) =>
+        user.id === other.userId ? { ...user, role: "admin" } : user,
+      ),
+    );
+    expect(canManagePost(original)).toBe(true);
+    updatePost(original.id, { title: "Moderated", content: "Text" });
+    saveUsers(users);
+    expect(() => deletePost(original.id)).toThrow("permission");
+    expect(findPost(original.id).title).toBe("Moderated");
+  });
+  it("rejects stale deleted-account identity for both mutations", () => {
+    const session = writer("owner");
+    const original = createPost({ title: "Title", content: "Text" });
+    saveUsers([]);
+    expect(canManagePost(original, session)).toBe(false);
+    expect(() =>
+      updatePost(original.id, { title: "Changed", content: "Text" }),
+    ).toThrow("Please log in again");
+    expect(() => deletePost(original.id)).toThrow("Please log in again");
+    expect(getPosts()).toEqual([original]);
+    expect(getSession()).toBeNull();
+  });
+  it.each([undefined, null, "", " ", 1, {}, [], "missing", "../post"])(
+    "rejects invalid/missing target %# without changing state",
+    (id) => {
+      login("admin", "admin");
+      savePosts([post(1)]);
+      expect(() => updatePost(id, { title: "Title", content: "Text" })).toThrow(
+        "Post not found",
+      );
+      expect(() => deletePost(id)).toThrow("Post not found");
+      expect(getPosts()).toEqual([post(1)]);
+    },
+  );
+  it.each([
+    undefined,
+    null,
+    {},
+    { content: "Text" },
+    { title: "" },
+    { title: " " },
+    { title: 1 },
+    { title: [] },
+    { title: {} },
+  ])("rejects invalid edit title %#", (fields) => {
+    login("admin", "admin");
+    savePosts([post(1)]);
+    expect(() => updatePost(post(1).id, fields)).toThrow("Title is required");
+    expect(getPosts()).toEqual([post(1)]);
+  });
+  it.each([undefined, null, "", " \n ", 1, [], {}, true])(
+    "rejects invalid edit content %#",
+    (content) => {
+      login("admin", "admin");
+      savePosts([post(1)]);
+      expect(() => updatePost(post(1).id, { title: "Title", content })).toThrow(
+        "Content is required",
+      );
+      expect(getPosts()).toEqual([post(1)]);
+    },
+  );
+  it.each(["update", "delete"])(
+    "reports failed %s writes and preserves the collection",
+    (operation) => {
+      login("admin", "admin");
+      savePosts([post(1), post(2)]);
+      vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+        throw new Error("quota");
+      });
+      expect(() =>
+        operation === "update"
+          ? updatePost(post(1).id, { title: "Changed", content: "Text" })
+          : deletePost(post(1).id),
+      ).toThrow("Unable to save data");
+      expect(getPosts()).toEqual([post(1), post(2)]);
+    },
+  );
+  it("fails closed on unavailable session reads and invalid permission inputs", () => {
+    login("admin", "admin");
+    expect(canManagePost(null)).toBe(false);
+    expect(canManagePost({})).toBe(false);
+    expect(canManagePost(post(1), null)).toBe(false);
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    expect(canManagePost(post(1))).toBe(false);
+    expect(() =>
+      updatePost(post(1).id, { title: "Title", content: "Text" }),
+    ).toThrow("Please log in again");
+    expect(() => deletePost(post(1).id)).toThrow("Please log in again");
+  });
+  it("retains unrelated posts and permits duplicate titles and large plain text edits", () => {
+    login("admin", "admin");
+    savePosts([post(1), post(2)]);
+    const content = "<img src=x>\n" + "word ".repeat(20000);
+    updatePost(post(1).id, { title: post(2).title, content });
+    expect(getPosts()).toEqual([
+      { ...post(1), title: post(2).title, content },
+      post(2),
+    ]);
+    deletePost(post(1).id);
+    expect(getPosts()).toEqual([post(2)]);
   });
 });
 

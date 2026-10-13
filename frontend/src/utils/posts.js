@@ -1,4 +1,4 @@
-/** Create and discover browser-local plain-text posts using current trusted identity. */
+/** Create, discover and manage browser-local posts using current trusted identity. */
 import { getSession } from "./auth";
 import { getPosts, savePosts, isRequiredString } from "./storage";
 export { getPosts } from "./storage";
@@ -85,4 +85,64 @@ export function createPost(fields) {
   };
   savePosts([...getPosts(), post]);
   return post;
+}
+
+/** Check management rights without trusting caller-provided role or identity.
+ * Args: post {object|null} Candidate post. session {object|null} Optional current-identity constraint.
+ * Returns: {boolean} Whether the actual current account owns or may moderate the post.
+ */
+export function canManagePost(post, session = getSession()) {
+  const current = getSession();
+  if (
+    !post ||
+    !isRequiredString(post.authorId) ||
+    !current ||
+    !session ||
+    session.userId !== current.userId
+  )
+    return false;
+  return current.role === "admin" || post.authorId === current.userId;
+}
+
+/** Resolve a target and enforce management rights for every mutation.
+ * Args: id {*} Exact post identifier.
+ * Returns: {object} Current post and complete validated collection.
+ * Raises: {Error} Missing session, missing post, or denied ownership.
+ */
+function manageablePost(id) {
+  const session = getSession();
+  if (!session) throw new Error("Please log in again before managing posts.");
+  const posts = getPosts();
+  const post = isRequiredString(id)
+    ? posts.find((item) => item.id === id)
+    : null;
+  if (!post) throw new Error("Post not found. Return to All Blogs.");
+  if (!canManagePost(post, session))
+    throw new Error("You do not have permission to manage this post.");
+  return { post, posts };
+}
+
+/** Save required text while preserving original identity, attribution and creation time.
+ * Args: id {*} Exact identifier. fields {object} Required title/content; extra claims are ignored.
+ * Returns: {object} Persisted updated post.
+ * Raises: {Error} Unauthorized identity, missing post, invalid fields or failed persistence.
+ */
+export function updatePost(id, fields) {
+  const { post, posts } = manageablePost(id);
+  const { title, content } = fields || {};
+  if (!isRequiredString(title)) throw new Error("Title is required.");
+  if (!isRequiredString(content)) throw new Error("Content is required.");
+  const updated = { ...post, title: title.trim(), content };
+  savePosts(posts.map((item) => (item.id === post.id ? updated : item)));
+  return updated;
+}
+
+/** Remove only a currently authorized, existing post.
+ * Args: id {*} Exact identifier.
+ * Raises: {Error} Unauthorized identity, missing post or failed persistence.
+ * Notes: Confirmation is owned by the reader UI, not this storage operation.
+ */
+export function deletePost(id) {
+  const { post, posts } = manageablePost(id);
+  savePosts(posts.filter((item) => item.id !== post.id));
 }

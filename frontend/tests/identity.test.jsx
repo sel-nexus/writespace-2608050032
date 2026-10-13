@@ -152,6 +152,7 @@ describe("forms and persistence", () => {
       screen.getByText("No blogs yet. Be the first to write one!"),
     ).toBeVisible();
     expect(getSession()).toEqual(session);
+    await user.click(screen.getByRole("button", { name: /Account options/ }));
     await user.click(screen.getByRole("button", { name: "Logout" }));
     expect(getSession()).toBeNull();
     await user.click(
@@ -281,6 +282,7 @@ describe("forms and persistence", () => {
     vi.spyOn(Storage.prototype, "removeItem").mockImplementation(() => {
       throw new Error("blocked");
     });
+    await user.click(screen.getByRole("button", { name: /Account options/ }));
     await user.click(screen.getByRole("button", { name: "Logout" }));
     expect(screen.getByRole("alert")).toHaveTextContent("Unable to log out");
     expect(

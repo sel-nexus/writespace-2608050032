@@ -1,7 +1,6 @@
-/** Compose identity routes and synchronize browser-local sessions without Context. */
+/** Compose public identity and guarded workspace routes without global context. */
 import { useEffect, useState } from "react";
 import {
-  Link,
   Navigate,
   Route,
   Routes,
@@ -9,6 +8,8 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { PublicNavbar } from "./components/PublicNavbar";
+import { Navbar } from "./components/Navbar";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -17,9 +18,9 @@ import ReadBlog from "./pages/ReadBlog";
 import WriteBlog from "./pages/WriteBlog";
 import { clearSession, getRoleHome, getSession } from "./utils/auth";
 
-/** Render identity and publishing routes with minimal authenticated navigation.
- * Returns: {JSX.Element} App routes, navigation, and inline logout feedback.
- * Notes: Editing and account-management surfaces remain temporary welcome routes.
+/** Synchronize account-derived display identity and compose permission boundaries.
+ * Returns: {JSX.Element} One navigation shell, guarded routes and logout feedback.
+ * Notes: Administration content remains temporary until its planned slice.
  */
 export default function App() {
   const [session, setSession] = useState(getSession);
@@ -27,7 +28,7 @@ export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
   useEffect(() => {
-    /** Refresh account-derived identity after navigation or another tab's storage change. */
+    /** Refresh identity after navigation or another tab's account/session change. */
     function synchronize() {
       setSession(getSession());
     }
@@ -40,7 +41,7 @@ export default function App() {
     };
   }, [location.pathname]);
 
-  /** Remove persisted identity before acknowledging logout; retain feedback on failure. */
+  /** Acknowledge logout only after trusted storage clearing succeeds. */
   function logout() {
     setLogoutError("");
     try {
@@ -52,55 +53,25 @@ export default function App() {
     }
   }
 
-  /** Guard the temporary welcome route without introducing permission-slice components. */
-  function welcome(adminOnly = false) {
-    if (!session) return <Navigate to="/login" replace />;
-    if (adminOnly && session.role !== "admin")
-      return <Navigate to="/blogs" replace />;
+  /** Render the administration slice's retained temporary welcome state. */
+  function welcome() {
+    const current = getSession();
     return (
-      <main
-        id="main-content"
-        className="mx-auto min-h-[calc(100svh-80px)] max-w-6xl px-6 py-20"
-      >
+      <main id="main-content" className="mx-auto max-w-6xl px-6 py-20">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary-700">
-          {session.role === "admin"
-            ? "Administrator account"
-            : "Writer account"}
+          Administrator account
         </p>
         <h1 className="mt-5 break-words font-display text-5xl">
-          Welcome, {session.displayName}.
+          Welcome, {current?.displayName}.
         </h1>
-        <p className="mt-6 max-w-xl text-lg leading-relaxed text-foreground-muted">
-          You are signed in as {session.username}. Your account and session are
+        <p className="mt-6 text-lg text-foreground-muted">
+          You are signed in as {current?.username}. Your account and session are
           saved in this browser.
         </p>
-        <p className="mt-4 max-w-xl leading-relaxed text-foreground-muted">
-          Reading and publishing are available from the public Home page.
-          Editing and account-management tools are not available in this slice.
+        <p className="mt-4 text-foreground-muted">
+          Read and manage posts using the navigation above. Account-management
+          tools arrive in the administration slice.
         </p>
-        <div className="mt-8 flex flex-wrap gap-4">
-          <Link
-            to="/"
-            className="rounded-control border border-border bg-surface px-6 py-3 font-semibold text-primary-700 hover:bg-surface-raised focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            Home
-          </Link>
-          <button
-            type="button"
-            onClick={logout}
-            className="rounded-control bg-primary-600 px-6 py-3 font-semibold text-white hover:bg-primary-700 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          >
-            Logout
-          </button>
-        </div>
-        {logoutError && (
-          <p
-            role="alert"
-            className="mt-6 rounded-control bg-error-light p-4 text-error"
-          >
-            {logoutError}
-          </p>
-        )}
         <p className="mt-12 max-w-xl text-sm leading-relaxed text-warning">
           Local demo only. Credentials are plaintext and browser-side guards are
           not production security. Never store real passwords or sensitive data.
@@ -108,6 +79,7 @@ export default function App() {
       </main>
     );
   }
+  const publicPage = ["/", "/login", "/register"].includes(location.pathname);
   return (
     <div className="min-h-screen bg-background font-sans text-foreground selection:bg-primary-100">
       <a
@@ -116,54 +88,19 @@ export default function App() {
       >
         Skip to content
       </a>
-      <PublicNavbar session={session} />
-      {session &&
-        ["/blogs", "/write"]
-          .concat(
-            location.pathname.startsWith("/blog/") ? [location.pathname] : [],
-          )
-          .includes(location.pathname) && (
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 border-b border-border px-6 py-4">
-            <nav
-              aria-label="Publishing navigation"
-              className="flex flex-wrap gap-4"
-            >
-              <Link
-                to="/"
-                className="rounded-control px-3 py-2 text-primary-700 focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                Home
-              </Link>
-              <Link
-                to="/blogs"
-                className="rounded-control px-3 py-2 text-primary-700 focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                All Blogs
-              </Link>
-              <Link
-                to="/write"
-                className="rounded-control px-3 py-2 text-primary-700 focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                Write
-              </Link>
-            </nav>
-            <button
-              type="button"
-              onClick={logout}
-              className="ml-auto rounded-control px-4 py-2 font-semibold text-primary-700 hover:bg-surface-raised focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              Logout
-            </button>
-            {logoutError && (
-              <p
-                role="alert"
-                className="w-full rounded-control bg-error-light p-4 text-error"
-              >
-                {logoutError}
-              </p>
-            )}
-          </div>
-        )}
+      {publicPage ? (
+        <PublicNavbar session={session} />
+      ) : session ? (
+        <Navbar key={session.userId} session={session} onLogout={logout} />
+      ) : null}
+      {logoutError && (
+        <p
+          role="alert"
+          className="mx-auto max-w-6xl rounded-control bg-error-light p-4 text-error"
+        >
+          {logoutError}
+        </p>
+      )}
       <Routes>
         <Route path="/" element={<LandingPage session={session} />} />
         <Route
@@ -188,19 +125,42 @@ export default function App() {
         />
         <Route
           path="/blogs"
-          element={session ? <Home /> : <Navigate to="/login" replace />}
+          element={
+            <ProtectedRoute>
+              <Home />
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/blog/:id"
-          element={session ? <ReadBlog /> : <Navigate to="/login" replace />}
+          element={
+            <ProtectedRoute>
+              <ReadBlog key={location.pathname} />
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/write"
-          element={session ? <WriteBlog /> : <Navigate to="/login" replace />}
+          element={
+            <ProtectedRoute>
+              <WriteBlog key={location.pathname} />
+            </ProtectedRoute>
+          }
         />
-        <Route path="/edit/:id" element={welcome()} />
+        <Route
+          path="/edit/:id"
+          element={
+            <ProtectedRoute>
+              <WriteBlog key={location.pathname} />
+            </ProtectedRoute>
+          }
+        />
         {["/admin", "/users"].map((path) => (
-          <Route key={path} path={path} element={welcome(true)} />
+          <Route
+            key={path}
+            path={path}
+            element={<ProtectedRoute adminOnly>{welcome()}</ProtectedRoute>}
+          />
         ))}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

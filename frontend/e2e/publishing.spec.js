@@ -80,7 +80,7 @@ test("register, validate, publish, read, list and reload browser-local writing",
   ).toEqual([post]);
   await page
     .getByRole("region", { name: "All posts" })
-    .getByRole("link", { name: /A published thought/ })
+    .getByRole("link", { name: /^A published thought/ })
     .click();
   expect(await page.locator("p.whitespace-pre-wrap").textContent()).toBe(
     content,
@@ -89,8 +89,10 @@ test("register, validate, publish, read, list and reload browser-local writing",
   expect(await page.locator("p.whitespace-pre-wrap").textContent()).toBe(
     content,
   );
+  const toggle = page.getByRole("button", { name: "Open menu" });
+  if (await toggle.isVisible()) await toggle.click();
   await page
-    .getByRole("navigation", { name: "Publishing navigation" })
+    .getByRole("navigation", { name: "Workspace navigation" })
     .getByRole("link", { name: "Write", exact: true })
     .click();
   await page.getByLabel("Title").fill("Do not save");
@@ -102,6 +104,7 @@ test("register, validate, publish, read, list and reload browser-local writing",
       JSON.parse(localStorage.getItem("writespace_posts")),
     ),
   ).toEqual([post]);
+  await page.getByRole("button", { name: /Account options/ }).click();
   await page.getByRole("button", { name: "Logout" }).click();
   await page.getByRole("link", { name: "Start Reading" }).click();
   await expect(page).toHaveURL(/\/login$/);
