@@ -16,11 +16,12 @@ import RegisterPage from "./pages/RegisterPage";
 import Home from "./pages/Home";
 import ReadBlog from "./pages/ReadBlog";
 import WriteBlog from "./pages/WriteBlog";
+import AdminDashboard from "./pages/AdminDashboard";
+import UserManagement from "./pages/UserManagement";
 import { clearSession, getRoleHome, getSession } from "./utils/auth";
 
 /** Synchronize account-derived display identity and compose permission boundaries.
  * Returns: {JSX.Element} One navigation shell, guarded routes and logout feedback.
- * Notes: Administration content remains temporary until its planned slice.
  */
 export default function App() {
   const [session, setSession] = useState(getSession);
@@ -53,32 +54,6 @@ export default function App() {
     }
   }
 
-  /** Render the administration slice's retained temporary welcome state. */
-  function welcome() {
-    const current = getSession();
-    return (
-      <main id="main-content" className="mx-auto max-w-6xl px-6 py-20">
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary-700">
-          Administrator account
-        </p>
-        <h1 className="mt-5 break-words font-display text-5xl">
-          Welcome, {current?.displayName}.
-        </h1>
-        <p className="mt-6 text-lg text-foreground-muted">
-          You are signed in as {current?.username}. Your account and session are
-          saved in this browser.
-        </p>
-        <p className="mt-4 text-foreground-muted">
-          Read and manage posts using the navigation above. Account-management
-          tools arrive in the administration slice.
-        </p>
-        <p className="mt-12 max-w-xl text-sm leading-relaxed text-warning">
-          Local demo only. Credentials are plaintext and browser-side guards are
-          not production security. Never store real passwords or sensitive data.
-        </p>
-      </main>
-    );
-  }
   const publicPage = ["/", "/login", "/register"].includes(location.pathname);
   return (
     <div className="min-h-screen bg-background font-sans text-foreground selection:bg-primary-100">
@@ -155,13 +130,22 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-        {["/admin", "/users"].map((path) => (
-          <Route
-            key={path}
-            path={path}
-            element={<ProtectedRoute adminOnly>{welcome()}</ProtectedRoute>}
-          />
-        ))}
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute adminOnly>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/users"
+          element={
+            <ProtectedRoute adminOnly>
+              <UserManagement />
+            </ProtectedRoute>
+          }
+        />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>

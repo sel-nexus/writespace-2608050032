@@ -213,7 +213,7 @@ describe("forms and persistence", () => {
     await user.click(screen.getByRole("button", { name: "Login" }));
     expect(screen.getByLabelText("Current route")).toHaveTextContent("/admin");
     expect(
-      screen.getByRole("heading", { name: "Welcome, Admin." }),
+      screen.getByRole("heading", { name: "Admin Dashboard" }),
     ).toBeVisible();
   });
   it.each(["/login", "/register"])(
@@ -286,7 +286,7 @@ describe("forms and persistence", () => {
     await user.click(screen.getByRole("button", { name: "Logout" }));
     expect(screen.getByRole("alert")).toHaveTextContent("Unable to log out");
     expect(
-      screen.getByRole("heading", { name: "Welcome, Admin." }),
+      screen.getByRole("heading", { name: "Admin Dashboard" }),
     ).toBeVisible();
     expect(getSession()).not.toBeNull();
   });
